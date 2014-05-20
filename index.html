@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<head>
+	<title>ServerlessDB</title>
+</head>
+
+<body>
+	<h2>Serverless Database</h2>
+	<table>
+		<tr>
+			<th id="status">
+				Customers 
+				<button type="button" id="connect-button" onclick="connectCustomers()">Connect</button>
+				<button type="button" id="disconnect-button" onclick="disconnectCustomers()">Disconnect</button>
+			</th>
+		</tr>
+		<tr>
+			<td><input type="text" id="customer-input"><button type="button" onclick="insertCustomer()">Insert</button></td>
+		</tr>
+		<tr>
+			<td id="customers-data"></td>
+		</tr>
+	</table>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/serverless-db.js"></script>
+
+	<script type="text/javascript">
+		var db = new ServerlessDB();
+
+		var socket = io.connect(window.location.protocol + "//" + window.location.hostname);
+		socket.on('message', function (data) {
+			db.onMessage(data);
+		});
+
+		db.onSendMessage = function(data) {
+			socket.emit("broadcast", data);
+		}
+
+		var customers = new ServerlessCollection(db, "customers");
+
+		customers.onDataChanged = function() {
+			var data = customers.data;
+			var s = "";
+			for(var i = 0; i < data.length; i++) {
+				s = s + data[i].customerName + " <a href='#' onclick='deleteCustomer(\"" + data[i]._id + "\")'>Delete</a><br />";
+			}
+			document.getElementById("customers-data").innerHTML = s;
+		}
+
+		customers.onConnect = function() {
+			document.getElementById("status").style.color = "green";
+			document.getElementById("connect-button").disabled = true;
+			document.getElementById("disconnect-button").disabled = false;
+		}
+
+		customers.onDisconnect = function() {
+			document.getElementById("status").style.color = "red";
+			document.getElementById("disconnect-button").disabled = true;
+			document.getElementById("connect-button").disabled = false;
+		}
+
+		function connectCustomers() {
+			customers.connect();
+		}
+
+		function disconnectCustomers() {
+			customers.disconnect();
+		}
+
+		function insertCustomer() {
+			var name = document.getElementById("customer-input").value;
+			document.getElementById("customer-input").value = "";
+			customers.insert({ customerName: name });
+		}
+
+		function deleteCustomer(id) {
+			customers.remove(id);
+		}
+
+		customers.connect();
+	</script>
+</body>
